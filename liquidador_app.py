@@ -1,3 +1,4 @@
+
 import pandas as pd
 import streamlit as st
 from io import BytesIO
@@ -24,6 +25,22 @@ archivo = st.file_uploader("Carga el archivo de servicios a liquidar (.xlsx)", t
 if archivo:
     df = pd.read_excel(archivo)
     df['Valor Total'] = pd.to_numeric(df['Valor Total'], errors='coerce').fillna(0)
+
+    # Opción para eliminar filas duplicadas
+    if st.checkbox("Eliminar filas duplicadas", value=True):
+        df = df.drop_duplicates()
+
+    # Agregar nuevo especialista copiando reglas de otro
+    st.subheader("Agregar nuevo especialista")
+    nuevo_nombre = st.text_input("Nombre del nuevo especialista")
+    copiar_de = st.selectbox("Copiar configuración de:", sorted(df['Especialista'].dropna().unique()))
+
+    if st.button("Agregar especialista"):
+        if nuevo_nombre and copiar_de:
+            filas_referencia = df[df['Especialista'] == copiar_de].copy()
+            filas_referencia['Especialista'] = nuevo_nombre
+            df = pd.concat([df, filas_referencia], ignore_index=True)
+            st.success(f"Se agregó {nuevo_nombre} copiando la configuración de {copiar_de}.")
 
     # Seleccionar profesional
     profesional = st.selectbox("Selecciona el profesional a liquidar", sorted(df['Especialista'].dropna().unique()))
