@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import zipfile
 from io import BytesIO
-from fpdf import FPDF
+import re
 
 # --- CONFIGURACIÓN GENERAL ---
 st.set_page_config(page_title="Liquidador de Honorarios", layout="wide")
@@ -11,6 +11,25 @@ VALOR_UVR_ISS_ANESTESIA = 960
 
 st.title("📊 Plataforma de Liquidación de Honorarios Médicos")
 st.markdown("Carga el archivo de servicios y obtén la liquidación por profesional según especialidad.")
+
+# --- FUNCIONES AUXILIARES ---
+def buscar_uvr_en_texto(codigo, texto):
+    patron = re.compile(rf"\b{codigo}\b.*?UVR\s*(\d+)", re.IGNORECASE)
+    coincidencias = patron.findall(texto)
+    if coincidencias:
+        return int(coincidencias[0])
+    return None
+
+def cargar_uvr_desde_pdf(ruta_pdf):
+    from PyPDF2 import PdfReader
+    reader = PdfReader(ruta_pdf)
+    texto_completo = ""
+    for page in reader.pages:
+        texto_completo += page.extract_text() + "\n"
+    return texto_completo
+
+ruta_pdf = "/mnt/data/tarifas-iss-2001.pdf"
+texto_uvr = cargar_uvr_desde_pdf(ruta_pdf) if ruta_pdf else ""
 
 # --- SUBIR ARCHIVO ---
 archivo = st.file_uploader("📌 Carga archivo Excel", type=["xlsx"])
@@ -24,6 +43,13 @@ if 'df' in st.session_state:
     for col in ['CUPS', 'Valor UVR']:
         if col not in df.columns:
             df[col] = '' if col == 'CUPS' else 0
+
+    # Asignar UVR automáticamente si se tiene CUPS y valor UVR = 0
+    for i, row in df.iterrows():
+        if row['Valor UVR'] == 0 and isinstance(row['CUPS'], str) and row['CUPS']:
+            uvr_pdf = buscar_uvr_en_texto(row['CUPS'], texto_uvr)
+            if uvr_pdf:
+                df.at[i, 'Valor UVR'] = uvr_pdf
 
     sin_uvr = df[df['Valor UVR'] == 0]
     sin_cups = df[df['CUPS'].isna() | (df['CUPS'] == '')]
@@ -146,3 +172,4 @@ if 'df' in st.session_state:
             z.writestr(f"{profesional}_liquidacion.xlsx", excel_io.read())
         buffer.seek(0)
         st.download_button("Descargar ZIP", buffer, f"Liquidacion_{profesional}.zip")
+        
