@@ -1,6 +1,6 @@
 # Liquidador de Honorarios Médicos
 
-Aplicación web para calcular y exportar la liquidación de honorarios médicos basada en archivos Excel de producción médica.
+Aplicación web para calcular, exportar y enviar por correo la liquidación de honorarios médicos.
 
 ## Funcionalidades
 
@@ -9,10 +9,11 @@ Aplicación web para calcular y exportar la liquidación de honorarios médicos 
 - Agregado de nuevos especialistas copiando configuraciones existentes
 - Selección de profesional a liquidar
 - Aplicación de reglas por especialidad (valor fijo, porcentaje, UVR)
+- Anestesiología: UVR × 960 + 60%
 - Conversión SOAT ↔ ISS
 - Vista editable de datos
-- Exportación en Excel
-- Visualización de métricas de resumen (% participación, totales)
+- Exportación en Excel y PDF
+- Envío del informe PDF por correo electrónico
 
 ## Cómo usar localmente
 
@@ -34,3 +35,8 @@ Aplicación web para calcular y exportar la liquidación de honorarios médicos 
 2. Ve a [streamlit.io/cloud](https://streamlit.io/cloud)
 3. Crea una nueva app seleccionando tu repo.
 4. Elige `liquidador_app.py` como archivo principal.
+
+## Notas sobre correo electrónico
+
+- Edita las líneas `msg['From']`, `smtp.login()` y agrega tu contraseña o clave de aplicación.
+- Usa un correo con SMTP habilitado (por ejemplo, Gmail con autenticación de dos factores).
