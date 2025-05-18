@@ -187,3 +187,21 @@ if 'df' in st.session_state:
             z.writestr(f"{profesional}_liquidacion.xlsx", excel_io.read())
         buffer.seek(0)
         st.download_button("Descargar ZIP", buffer, f"Liquidacion_{profesional}.zip")
+    # --- Ingreso manual de UVR para códigos sin valor ---
+    st.markdown("### ✏️ Ingresar manualmente UVR para CUPS sin valor")
+    codigos_faltantes = df[df['Valor UVR'] == 0]['CUPS'].dropna().unique()
+    for cod in codigos_faltantes:
+        nueva_uvr = st.number_input(f"Ingrese UVR para código {cod}", min_value=0, step=1, key=f"uvr_{cod}")
+        if nueva_uvr > 0:
+            df.loc[df['CUPS'] == cod, 'Valor UVR'] = nueva_uvr
+
+    sin_uvr = df[df['Valor UVR'] == 0]
+    sin_cups = df[df['CUPS'].isna() | (df['CUPS'] == '')]
+
+    if not sin_uvr.empty or not sin_cups.empty:
+        st.warning("⚠️ Existen registros con UVR o CUPS faltantes.")
+        st.dataframe(pd.concat([sin_uvr, sin_cups]).drop_duplicates())
+        if not st.button("✅ No aplica, continuar"):
+            st.stop()
+
+    st.data_editor(df, use_container_width=True, num_rows="dynamic")
