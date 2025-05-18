@@ -3,16 +3,14 @@ import pandas as pd
 import zipfile
 from io import BytesIO
 import re
+from PyPDF2 import PdfReader
 
-# --- CONFIGURACIÓN GENERAL ---
+# CONFIGURACIÓN GENERAL
 st.set_page_config(page_title="Liquidador de Honorarios", layout="wide")
 VALOR_UVR = 1270
 VALOR_UVR_ISS_ANESTESIA = 960
 
-st.title("📊 Plataforma de Liquidación de Honorarios Médicos")
-st.markdown("Carga el archivo de servicios y obtén la liquidación por profesional según especialidad.")
-
-# --- FUNCIONES AUXILIARES ---
+# FUNCIONES AUXILIARES
 def buscar_uvr_en_texto(codigo, texto):
     codigo = codigo.strip()
     lineas = texto.splitlines()
@@ -28,30 +26,23 @@ def buscar_uvr_en_texto(codigo, texto):
     return None
 
 def cargar_uvr_desde_pdf(ruta_pdf):
-    from PyPDF2 import PdfReader
     reader = PdfReader(ruta_pdf)
-    texto_completo = ""
-    for page in reader.pages:
-        texto_completo += page.extract_text() + "\n"
-    return texto_completo
+    return "\n".join(page.extract_text() for page in reader.pages)
 
 @st.cache_data
 def cargar_base_uvr_excel():
     try:
         df_tarifas = pd.read_excel("/mnt/data/tarifas_iss_completo.xlsx")
-        df_tarifas = df_tarifas.dropna(subset=['CUPS', 'UVR'])
-        df_tarifas['CUPS'] = df_tarifas['CUPS'].astype(str).str.strip()
-        return df_tarifas.set_index('CUPS')['UVR'].to_dict()
+        df_tarifas = df_tarifas.dropna(subset=['Código ISS', 'UVR'])
+        df_tarifas['Código ISS'] = df_tarifas['Código ISS'].astype(str).str.strip()
+        return df_tarifas.set_index('Código ISS')['UVR'].to_dict()
     except Exception as e:
         st.error(f"Error cargando base ISS Excel: {e}")
         return {}
 
-base_uvr_excel = cargar_base_uvr_excel()
-ruta_pdf = "/mnt/data/tarifas-iss-2001.pdf"
-texto_uvr = cargar_uvr_desde_pdf(ruta_pdf) if ruta_pdf else ""
-
-# --- SUBIR ARCHIVO ---
-archivo = st.file_uploader("📌 Carga archivo Excel", type=["xlsx"])
+# 1. CARGA DE ARCHIVO
+st.title("📊 Plataforma de Liquidación de Honorarios Médicos")
+archivo = st.file_uploader("📥 Cargar archivo de servicios", type=["xlsx"])
 if archivo:
     df = pd.read_excel(archivo)
     st.session_state.df = df
@@ -63,32 +54,37 @@ if 'df' in st.session_state:
         if col not in df.columns:
             df[col] = '' if col == 'CUPS' else 0
 
-    # Asignar UVR automáticamente si se tiene CUPS y valor UVR = 0
+    # 2. HOMOLOGACIÓN DE CÓDIGOS SOAT A ISS (previamente asumida por el usuario o incluida en archivo)
+
+    # 3. BUSCAR UVR AUTOMÁTICAMENTE
+    base_uvr_excel = cargar_base_uvr_excel()
+    texto_uvr_pdf = cargar_uvr_desde_pdf("/mnt/data/tarifas-iss-2001.pdf")
     for i, row in df.iterrows():
         if row['Valor UVR'] == 0 and isinstance(row['CUPS'], str) and row['CUPS'].strip():
-            cups = row['CUPS'].strip()
-            uvr_excel = base_uvr_excel.get(cups)
-            if uvr_excel:
-                df.at[i, 'Valor UVR'] = uvr_excel
-            else:
-                uvr_pdf = buscar_uvr_en_texto(cups, texto_uvr)
-                if uvr_pdf:
-                    df.at[i, 'Valor UVR'] = uvr_pdf
+            cod = row['CUPS'].strip()
+            uvr = base_uvr_excel.get(cod) or buscar_uvr_en_texto(cod, texto_uvr_pdf)
+            if uvr:
+                df.loc[df['CUPS'] == cod, 'Valor UVR'] = uvr
+
+    # 4. CARGA MANUAL DE UVR FALTANTES
+    st.subheader("✏️ Ingreso manual de UVR para códigos no encontrados")
+    codigos_faltantes = df[df['Valor UVR'] == 0]['CUPS'].dropna().unique()
+    for cod in codigos_faltantes:
+        nueva_uvr = st.number_input(f"UVR para código {cod}", min_value=0, step=1, key=f"uvr_{cod}")
+        if nueva_uvr > 0:
+            df.loc[df['CUPS'] == cod, 'Valor UVR'] = nueva_uvr
 
     sin_uvr = df[df['Valor UVR'] == 0]
-    sin_cups = df[df['CUPS'].isna() | (df['CUPS'] == '')]
-
-    if not sin_uvr.empty or not sin_cups.empty:
-        st.warning("⚠️ Existen registros con UVR o CUPS faltantes.")
-        st.dataframe(pd.concat([sin_uvr, sin_cups]).drop_duplicates())
-        if not st.button("✅ No aplica, continuar"):
+    if not sin_uvr.empty:
+        st.warning("⚠️ Aún hay registros sin UVR. Puedes completar manualmente o continuar sin aplicar.")
+        st.dataframe(sin_uvr)
+        if not st.button("✅ Continuar sin completar todo"):
             st.stop()
 
-    st.data_editor(df, use_container_width=True, num_rows="dynamic")
-
-    # --- Selección de especialista y configuración ---
+    # 5. SELECCIÓN DE PROFESIONAL Y LIQUIDACIÓN
     profesionales = list(df['Especialista'].dropna().unique())
-    profesional = st.selectbox("Selecciona el profesional a liquidar", profesionales)
+    st.subheader("👤 Seleccionar especialista")
+    profesional = st.selectbox("Especialista a liquidar", profesionales)
     df_prof = df[df['Especialista'] == profesional].copy()
 
     check_anestesia_diff = st.checkbox("Anestesiología diferencial (60%)")
@@ -96,7 +92,6 @@ if 'df' in st.session_state:
     check_reconstruc = st.checkbox("Cirujano reconstructivo")
     check_pie = st.checkbox("Cirujano de pie y tobillo")
 
-    # --- Cálculo ---
     def liquidar(row):
         esp = str(row.get("Especialidad", "")).upper()
         tipo = str(row.get("Tipo Procedimiento", "")).upper()
@@ -108,8 +103,7 @@ if 'df' in st.session_state:
         if "ANESTESIO" in esp:
             base = uvr * VALOR_UVR_ISS_ANESTESIA * 1.3
             factor = 0.6 if "misma" in via else 0.75
-            if check_anestesia_diff:
-                factor += 0.6
+            if check_anestesia_diff: factor += 0.6
             return base * factor
 
         if "MAXILOFACIAL" in esp:
@@ -170,13 +164,16 @@ if 'df' in st.session_state:
     df_prof['Valor Liquidado'] = df_prof.apply(liquidar, axis=1)
     df_prof['Valor Total'] = pd.to_numeric(df_prof.get('Valor Total', 0), errors='coerce')
 
-    st.subheader("💰 Liquidación")
-    st.dataframe(df_prof, use_container_width=True)
+    # 6. AJUSTE MANUAL DE VALORES
+    st.subheader("✏️ Ajustar valores manualmente si es necesario")
+    st.data_editor(df_prof, use_container_width=True, num_rows="dynamic")
+
+    # 7. EXPORTAR RESULTADOS
+    st.subheader("📤 Exportar resultados")
     st.metric("Total facturado", f"${df_prof['Valor Total'].sum():,.0f}")
     st.metric("Total liquidado", f"${df_prof['Valor Liquidado'].sum():,.0f}")
     st.metric("% Liquidado", f"{(df_prof['Valor Liquidado'].sum() / df_prof['Valor Total'].sum()) * 100:.2f}%")
 
-    # --- Exportar ZIP ---
     if st.button("📦 Exportar Liquidación ZIP"):
         buffer = BytesIO()
         with zipfile.ZipFile(buffer, "w") as z:
@@ -187,21 +184,5 @@ if 'df' in st.session_state:
             z.writestr(f"{profesional}_liquidacion.xlsx", excel_io.read())
         buffer.seek(0)
         st.download_button("Descargar ZIP", buffer, f"Liquidacion_{profesional}.zip")
-    # --- Ingreso manual de UVR para códigos sin valor ---
-    st.markdown("### ✏️ Ingresar manualmente UVR para CUPS sin valor")
-    codigos_faltantes = df[df['Valor UVR'] == 0]['CUPS'].dropna().unique()
-    for cod in codigos_faltantes:
-        nueva_uvr = st.number_input(f"Ingrese UVR para código {cod}", min_value=0, step=1, key=f"uvr_{cod}")
-        if nueva_uvr > 0:
-            df.loc[df['CUPS'] == cod, 'Valor UVR'] = nueva_uvr
 
-    sin_uvr = df[df['Valor UVR'] == 0]
-    sin_cups = df[df['CUPS'].isna() | (df['CUPS'] == '')]
-
-    if not sin_uvr.empty or not sin_cups.empty:
-        st.warning("⚠️ Existen registros con UVR o CUPS faltantes.")
-        st.dataframe(pd.concat([sin_uvr, sin_cups]).drop_duplicates())
-        if not st.button("✅ No aplica, continuar"):
-            st.stop()
-
-    st.data_editor(df, use_container_width=True, num_rows="dynamic")
+# MÓDULO DE PARAMETRIZACIÓN E INFORMES (pendiente de integrar visualmente)
