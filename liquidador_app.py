@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import zipfile
 from io import BytesIO
+from fpdf import FPDF
 
 # --- CONFIGURACIÓN GENERAL ---
 st.set_page_config(page_title="Liquidador de Honorarios", layout="wide")
@@ -12,7 +13,11 @@ st.title("🩺 Plataforma de Liquidación de Honorarios Médicos")
 st.markdown("Carga el archivo de servicios y obtén la liquidación por profesional según especialidad.")
 
 # --- SUBIR ARCHIVO ---
-archivo = st.file_uploader("📎 Carga archivo Excel", type=["xlsx"])
+col_up1, col_up2 = st.columns([3, 1])
+with col_up1:
+    archivo = st.file_uploader("📎 Carga archivo Excel", type=["xlsx"])
+with col_up2:
+    boton_manual = st.button("➕ Cargar datos manualmente")
 
 # --- CARGAR HOMOLOGACIÓN ---
 def cargar_tabla_homologacion():
@@ -23,104 +28,64 @@ def cargar_tabla_homologacion():
 
 homologacion_df = cargar_tabla_homologacion()
 
-if archivo:
-    df = pd.read_excel(archivo)
-    df['Valor Total'] = pd.to_numeric(df['Valor Total'], errors='coerce').fillna(0)
-    df['Valor UVR'] = pd.to_numeric(df.get('Valor UVR', 0), errors='coerce').fillna(0)
+# --- FUNCIONES ---
+def generar_pdf(df, nombre):
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf.add_page()
+    pdf.set_font("Arial", size=10)
+    pdf.cell(0, 10, f"Liquidación de Honorarios - {nombre}", ln=True)
+    pdf.ln(5)
 
-    # --- APLICAR HOMOLOGACIÓN A NUEVA COLUMNA ---
-    if 'CÓDIGO SOAT' in df.columns:
-        df = df.merge(homologacion_df.rename(columns={"SOAT": "CÓDIGO SOAT", "CUPS": "Código Homólogo"}),
-                      on="CÓDIGO SOAT", how="left")
-    else:
-        df["Código Homólogo"] = None
+    columnas = df.columns.tolist()
+    for col in columnas:
+        pdf.cell(40, 8, col, border=1)
+    pdf.ln()
+    for _, row in df.iterrows():
+        for item in row:
+            pdf.cell(40, 8, str(item), border=1)
+        pdf.ln()
+    return pdf.output(dest='S').encode('latin1')
 
-    st.subheader("🔍 Revisión de homologación")
-    if st.checkbox("🧹 Eliminar duplicados", value=True):
-        df = df.drop_duplicates()
+if boton_manual:
+    st.subheader("📝 Ingreso manual de servicio")
+    with st.form("form_ingreso_manual"):
+        col1, col2 = st.columns(2)
+        with col1:
+            especialista = st.text_input("Nombre del especialista")
+            especialidad = st.text_input("Especialidad")
+            plan = st.text_input("Plan de beneficios")
+            descripcion = st.text_input("Descripción del servicio")
+        with col2:
+            codigo_soat = st.text_input("Código SOAT")
+            via = st.text_input("Vía de Liquidación")
+            valor_total = st.number_input("Valor Total", min_value=0.0, step=1000.0)
+            valor_uvr = st.number_input("Valor UVR", min_value=0.0, step=1.0)
 
-    homologados = df[df['Valor UVR'] > 0][['Código Homólogo', 'Valor UVR']].drop_duplicates()
-    sin_uvr = df[df['Valor UVR'] == 0][['Código Homólogo']].drop_duplicates()
+        submitted = st.form_submit_button("Agregar servicio")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### ✅ CUPS homologados")
-        st.dataframe(homologados)
-    with col2:
-        st.markdown("### ⚠️ Códigos sin UVR")
-        st.dataframe(sin_uvr)
+        if submitted:
+            nuevo_registro = pd.DataFrame([{
+                "Especialista": especialista,
+                "Especialidad": especialidad,
+                "Plan": plan,
+                "Descripción": descripcion,
+                "CÓDIGO SOAT": codigo_soat,
+                "Vía Liquidación": via,
+                "Valor Total": valor_total,
+                "Valor UVR": valor_uvr
+            }])
 
-    # --- CONTROLES ESPECIALES ---
-    st.subheader("⚙️ Configuración adicional")
-    es_socio = st.checkbox("¿El profesional es ortopedista socio?")
-    es_pie_tobillo = st.checkbox("¿El profesional es cirujano de pie y tobillo?")
-    es_reconstructivo = st.checkbox("¿El profesional es cirujano reconstructivo?")
-    anestesiologia_diferencial = st.checkbox("¿Aplicar incremento diferencial del 60% en Anestesiología?")
-
-    # --- FUNCIÓN DE LIQUIDACIÓN ---
-    def calcular_liquidacion(row):
-        esp = str(row.get('Especialidad', '')).upper()
-        total = row.get('Valor Total', 0)
-        uvr = row.get('Valor UVR', 0)
-        via = str(row.get('Vía Liquidación', '')).lower()
-        plan = str(row.get('Plan', '')).upper()
-        desc = str(row.get('Descripción', '')).lower()
-
-        if "ANESTESIO" in esp:
-            base = uvr * VALOR_UVR_ISS_ANESTESIA * 1.3
-            if "misma" in via:
-                factor = 0.6 + (0.6 if anestesiologia_diferencial else 0)
-            elif "diferente" in via:
-                factor = 0.75 + (0.6 if anestesiologia_diferencial else 0)
+            if 'df' in st.session_state:
+                st.session_state.df = pd.concat([st.session_state.df, nuevo_registro], ignore_index=True)
             else:
-                factor = 1
-            return base * factor
+                st.session_state.df = nuevo_registro
 
-        if es_reconstructivo:
-            if "consulta" in desc:
-                return 28000
-            elif "reconstructiva" in desc:
-                return 2700000 if "EPS" in plan else 3000000
-            elif uvr > 0:
-                return uvr * VALOR_UVR * 1.2
+            st.success("✔️ Servicio agregado correctamente.")
+            st.dataframe(st.session_state.df)
 
-        if es_pie_tobillo:
-            if "consulta" in desc:
-                return 30000
-            elif "junta" in desc or "especial" in desc:
-                return total * 0.7
-            elif uvr >= 600 or "grupo especial" in desc:
-                return 600 * VALOR_UVR * 1.3
-            elif uvr > 0:
-                return uvr * VALOR_UVR * 1.3
+if 'df' in st.session_state:
+    df = st.session_state.df
+    archivo = True
 
-        if es_socio and "ORTOPEDIA" in esp:
-            return total * (0.7 if "SOAT" in plan else 0.85)
-
-        if "ORTOPEDIA Y TRAUMATOLOGIA" in esp and "consulta" in desc:
-            return 27000
-
-        if "ORTOPEDIA Y TRAUMATOLOGIA" in esp and "quirurgico" in desc:
-            return uvr * VALOR_UVR * 1.2
-
-        if "ORTOPEDIA Y TRAUMATOLOGIA" in esp and "no quirurgico" in desc:
-            return total * 0.7
-
-        return total * 0.7 if uvr == 0 else uvr * VALOR_UVR
-
-    df['Valor Liquidado'] = df.apply(calcular_liquidacion, axis=1)
-
-    # --- EXPORTAR ZIP ---
-    st.subheader("📦 Exportación individual por profesional")
-    if st.button("⬇️ Descargar archivo consolidado"):
-        output = BytesIO()
-        with zipfile.ZipFile(output, "w") as zipf:
-            for prof in df['Especialista'].dropna().unique():
-                df_prof = df[df['Especialista'] == prof]
-                bio = BytesIO()
-                with pd.ExcelWriter(bio, engine='xlsxwriter') as writer:
-                    df_prof.to_excel(writer, index=False, sheet_name='Liquidacion')
-                bio.seek(0)
-                zipf.writestr(f"{prof}.xlsx", bio.read())
-        output.seek(0)
-        st.download_button("📁 Descargar ZIP", data=output, file_name="Liquidacion_profesionales.zip", mime="application/zip")
+if archivo:
+    pass
