@@ -14,7 +14,8 @@ st.markdown("Carga el archivo de servicios y obtén la liquidación por profesio
 
 # --- FUNCIONES AUXILIARES ---
 def buscar_uvr_en_texto(codigo, texto):
-    patron = re.compile(rf"\b{codigo}\b.*?UVR\s*(\d+)", re.IGNORECASE)
+    codigo = re.escape(codigo.strip())
+    patron = re.compile(rf"\b{codigo}\b[\s\S]*?(?:UVR[:\s]+)(\d+)", re.IGNORECASE)
     coincidencias = patron.findall(texto)
     if coincidencias:
         return int(coincidencias[0])
@@ -46,7 +47,7 @@ if 'df' in st.session_state:
 
     # Asignar UVR automáticamente si se tiene CUPS y valor UVR = 0
     for i, row in df.iterrows():
-        if row['Valor UVR'] == 0 and isinstance(row['CUPS'], str) and row['CUPS']:
+        if row['Valor UVR'] == 0 and isinstance(row['CUPS'], str) and row['CUPS'].strip():
             uvr_pdf = buscar_uvr_en_texto(row['CUPS'], texto_uvr)
             if uvr_pdf:
                 df.at[i, 'Valor UVR'] = uvr_pdf
@@ -172,4 +173,3 @@ if 'df' in st.session_state:
             z.writestr(f"{profesional}_liquidacion.xlsx", excel_io.read())
         buffer.seek(0)
         st.download_button("Descargar ZIP", buffer, f"Liquidacion_{profesional}.zip")
-        
