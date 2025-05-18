@@ -1,42 +1,72 @@
-# Liquidador de Honorarios Médicos
+Liquidador de Honorarios Médicos
+Aplicación profesional para la liquidación de servicios médicos por especialista, diseñada para clínicas y entidades de salud.
 
-Aplicación web para calcular, exportar y enviar por correo la liquidación de honorarios médicos.
+🚀 Características principales
+📂 Carga y depuración de datos
+Carga archivos .xlsx con los servicios prestados.
 
-## Funcionalidades
+Elimina duplicados automáticamente.
 
-- Carga de archivo Excel (.xlsx)
-- Eliminación de filas duplicadas
-- Agregado de nuevos especialistas copiando configuraciones existentes
-- Selección de profesional a liquidar
-- Aplicación de reglas por especialidad (valor fijo, porcentaje, UVR)
-- Anestesiología: UVR × 960 + 60%
-- Conversión SOAT ↔ ISS
-- Vista editable de datos
-- Exportación en Excel y PDF
-- Envío del informe PDF por correo electrónico
+Conversión de formatos numéricos para UVR y valores totales.
 
-## Cómo usar localmente
+🧠 Homologación inteligente
+Muestra:
 
-1. Clona este repositorio o descarga los archivos.
-2. Instala las dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Ejecuta la app:
-   ```bash
-   streamlit run liquidador_app.py
-   ```
+✅ Códigos CUPS con UVR asignado.
 
-4. Accede a `http://localhost:8501` desde tu navegador.
+⚠️ CUPS sin UVR para homologación manual.
 
-## Publicación en Streamlit Cloud
+Admite corrección directa del archivo fuente si se desea.
 
-1. Sube este repositorio a GitHub.
-2. Ve a [streamlit.io/cloud](https://streamlit.io/cloud)
-3. Crea una nueva app seleccionando tu repo.
-4. Elige `liquidador_app.py` como archivo principal.
+🧮 Reglas de liquidación por especialidad
+Anestesiología: UVR × 960 × 1.3 + vía quirúrgica (60% o 75%) + diferencial (opcional).
 
-## Notas sobre correo electrónico
+Cirujano reconstructivo:
 
-- Edita las líneas `msg['From']`, `smtp.login()` y agrega tu contraseña o clave de aplicación.
-- Usa un correo con SMTP habilitado (por ejemplo, Gmail con autenticación de dos factores).
+Consultas: $28,000
+
+Cirugías: $3,000,000 (o $2,700,000 si EPS)
+
+No reconstructivas: UVR × 1270 × 1.2
+
+Cirujano de pie y tobillo:
+
+Consultas: $30,000
+
+Juntas y especiales: 70%
+
+Qx grupo especial: 600 UVR × 1.3
+
+Qx generales: UVR × 1.3
+
+Ortopedista socio:
+
+Plan SOAT: 70% del valor
+
+No SOAT: 85%
+
+Ortopedia general:
+
+Consultas: $27,000
+
+Qx: UVR × 1.2
+
+No Qx: 70%
+
+⚙️ Configuración personalizada por especialista
+Activada desde la interfaz:
+
+✅ Ortopedista socio
+
+✅ Cirujano de pie y tobillo
+
+✅ Cirujano reconstructivo
+
+✅ Anestesiología con incremento diferencial
+
+📦 Exportación avanzada
+📁 Genera un .xlsx individual por especialista.
+
+📤 Empaqueta automáticamente en un ZIP descargable.
+
+Compatible con navegación web moderna (Streamlit UI).
