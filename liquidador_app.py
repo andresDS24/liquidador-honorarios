@@ -14,28 +14,41 @@ st.markdown("Carga el archivo de servicios y obtén la liquidación por profesio
 # --- SUBIR ARCHIVO ---
 archivo = st.file_uploader("📎 Carga archivo Excel", type=["xlsx"])
 
+# --- CARGAR HOMOLOGACIÓN ---
+def cargar_tabla_homologacion():
+    try:
+        return pd.read_excel("tabla_homologacion.xlsx")
+    except:
+        return pd.DataFrame(columns=["SOAT", "CUPS"])
+
+homologacion_df = cargar_tabla_homologacion()
+
 if archivo:
     df = pd.read_excel(archivo)
     df['Valor Total'] = pd.to_numeric(df['Valor Total'], errors='coerce').fillna(0)
     df['Valor UVR'] = pd.to_numeric(df.get('Valor UVR', 0), errors='coerce').fillna(0)
 
-    if 'CUPS' in df.columns:
-        st.subheader("🔍 Revisión de homologación")
-        if st.checkbox("🧹 Eliminar duplicados", value=True):
-            df = df.drop_duplicates()
-
-        homologados = df[df['Valor UVR'] > 0][['CUPS', 'Valor UVR']].drop_duplicates()
-        sin_uvr = df[df['Valor UVR'] == 0][['CUPS']].drop_duplicates()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### ✅ CUPS homologados")
-            st.dataframe(homologados)
-        with col2:
-            st.markdown("### ⚠️ Códigos sin UVR")
-            st.dataframe(sin_uvr)
+    # --- APLICAR HOMOLOGACIÓN A NUEVA COLUMNA ---
+    if 'CÓDIGO SOAT' in df.columns:
+        df = df.merge(homologacion_df.rename(columns={"SOAT": "CÓDIGO SOAT", "CUPS": "Código Homólogo"}),
+                      on="CÓDIGO SOAT", how="left")
     else:
-        st.warning("⚠️ El archivo no contiene la columna 'CUPS'. Verifica el formato del archivo.")
+        df["Código Homólogo"] = None
+
+    st.subheader("🔍 Revisión de homologación")
+    if st.checkbox("🧹 Eliminar duplicados", value=True):
+        df = df.drop_duplicates()
+
+    homologados = df[df['Valor UVR'] > 0][['Código Homólogo', 'Valor UVR']].drop_duplicates()
+    sin_uvr = df[df['Valor UVR'] == 0][['Código Homólogo']].drop_duplicates()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### ✅ CUPS homologados")
+        st.dataframe(homologados)
+    with col2:
+        st.markdown("### ⚠️ Códigos sin UVR")
+        st.dataframe(sin_uvr)
 
     # --- CONTROLES ESPECIALES ---
     st.subheader("⚙️ Configuración adicional")
