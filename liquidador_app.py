@@ -19,20 +19,23 @@ if archivo:
     df['Valor Total'] = pd.to_numeric(df['Valor Total'], errors='coerce').fillna(0)
     df['Valor UVR'] = pd.to_numeric(df.get('Valor UVR', 0), errors='coerce').fillna(0)
 
-    st.subheader("🔍 Revisión de homologación")
-    if st.checkbox("🧹 Eliminar duplicados", value=True):
-        df = df.drop_duplicates()
+    if 'CUPS' in df.columns:
+        st.subheader("🔍 Revisión de homologación")
+        if st.checkbox("🧹 Eliminar duplicados", value=True):
+            df = df.drop_duplicates()
 
-    homologados = df[df['Valor UVR'] > 0][['CUPS', 'Valor UVR']].drop_duplicates()
-    sin_uvr = df[df['Valor UVR'] == 0][['CUPS']].drop_duplicates()
+        homologados = df[df['Valor UVR'] > 0][['CUPS', 'Valor UVR']].drop_duplicates()
+        sin_uvr = df[df['Valor UVR'] == 0][['CUPS']].drop_duplicates()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### ✅ CUPS homologados")
-        st.dataframe(homologados)
-    with col2:
-        st.markdown("### ⚠️ Códigos sin UVR")
-        st.dataframe(sin_uvr)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### ✅ CUPS homologados")
+            st.dataframe(homologados)
+        with col2:
+            st.markdown("### ⚠️ Códigos sin UVR")
+            st.dataframe(sin_uvr)
+    else:
+        st.warning("⚠️ El archivo no contiene la columna 'CUPS'. Verifica el formato del archivo.")
 
     # --- CONTROLES ESPECIALES ---
     st.subheader("⚙️ Configuración adicional")
