@@ -1,13 +1,26 @@
-# Liquidador de Honorarios Médicos
+# Liquidador de Honorarios Médicos - WebApp
 
-Plataforma profesional para clínicas y especialistas:
-- Carga de Excel o ingreso manual.
-- Homologación CUPS desde SOAT.
-- Reglas dinámicas por especialidad.
-- Conversión tarifaria SOAT/ISS.
-- Exportación por profesional en Excel y PDF.
+Plataforma para liquidación profesional de servicios médicos:
+
+## Funcionalidades
+- Carga desde Excel o edición directa en la web.
+- Homologación SOAT ↔ CUPS.
+- Cálculo de UVR automático o manual.
+- Liquidación automatizada según especialidad.
+- Validaciones visuales para datos faltantes.
+- Reportes en tiempo real:
+  - Totales por profesional
+  - Porcentaje liquidado vs facturado
+  - Gráfico comparativo
+- Exportación por profesional en PDF y Excel.
+- Descarga consolidada en ZIP.
 
 ## Uso
-1. Sube este repositorio a GitHub.
-2. Crea una app en Streamlit Cloud.
-3. Usa `liquidador_app.py` como archivo principal.
+1. Sube los archivos a Streamlit Cloud o ejecuta localmente con:
+```bash
+streamlit run liquidador_app.py
+```
+
+2. Carga un archivo Excel o edita los datos manualmente.
+3. Aplica reglas y valida la información.
+4. Exporta resultados por profesional.
