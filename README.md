@@ -1,67 +1,58 @@
-# 💼 Plataforma de Liquidación de Honorarios Médicos
+# 💼 Liquidador de Honorarios Médicos
 
-Sistema profesional para calcular, gestionar y exportar la liquidación de honorarios a especialistas de salud según reglas específicas por especialidad, plan y procedimiento.
+Aplicación interactiva desarrollada en Streamlit para cargar servicios médicos, homologar códigos, calcular liquidaciones por especialista, generar informes automáticos y exportar resultados.
 
----
+## 🚀 Funcionalidades principales
 
-## 🗂️ Carga y gestión de archivos
-- Carga de archivo Excel con base de servicios.
-- Validación de columnas requeridas (`CUPS`, `UVR`, `Especialista`, etc).
-- Detección automática de faltantes (homologación/UVR).
-- Edición manual de CUPS y UVR.
-- Eliminación de duplicados (opcional).
-- Botón “No aplica” para continuar sin completar.
+- Carga de archivo Excel de servicios.
+- Homologación automática de códigos SOAT a CUPS.
+- Asignación automática de UVR desde:
+  - Excel (`tarifas_iss_completo.xlsx`)
+  - PDF (`tarifas-iss-2001.pdf`)
+- Ingreso manual de UVR cuando no se encuentra automáticamente (replicado en todos los códigos repetidos).
+- Liquidación automática por especialista con reglas específicas para:
+  - Anestesiología (con modo diferencial)
+  - Ortopedia (general, pediátrica, reconstructiva, mano, pie y socio)
+  - Neurocirugía
+  - Medicina del dolor
+  - Medicina física y rehabilitación
+  - Medicina laboral
+  - Cirugía maxilofacial
+- Selección del profesional a liquidar con métricas por valor total y porcentaje.
+- Exportación individual a CSV.
+- Informe general por especialista descargable en resumen.
 
----
+## 📝 Requisitos
 
-## 👩‍⚕️ Gestión de profesionales
-- Selección del profesional a liquidar.
-- Agregar nuevos profesionales.
-- Copiar configuración de otro profesional.
-- Listado dinámico desde el archivo cargado.
+El archivo `requirements.txt` incluye:
 
----
+```
+streamlit
+pandas
+openpyxl
+PyPDF2
+xlsxwriter
+```
 
-## ⚙️ Configuraciones de liquidación
-- Conversión de tarifas SOAT ↔ ISS.
-- Checkbox: Anestesiología diferencial (+60%).
-- Checkbox: Socio ortopedista, cirujano de pie/tobillo, reconstructivo.
+## 📦 Archivos esperados
 
----
+- `servicios.xlsx`: base con columnas como `Especialista`, `CUPS`, `Valor Total`, `Tipo Procedimiento`, `Plan Beneficios`, etc.
+- `tarifas_iss_completo.xlsx`: base con columnas `Código ISS` y `UVR`.
+- `tarifas-iss-2001.pdf`: documento que contiene códigos y UVR como respaldo adicional.
 
-## 📐 Reglas personalizadas por especialidad
+## ▶️ Ejecución local
 
-Incluye fórmulas y tarifas para:
+1. Instala las dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-- **Anestesiología**: UVR ISS (960) +30%, mult. vía y diferencial.
-- **Maxilofacial**: consulta e interconsulta fijas, proc. al 70%.
-- **Fisiatría**: consultas, infiltraciones, juntas, proc. no quirúrgicos.
-- **Dolor**: bloqueos, interconsultas, 70% valor facturado.
-- **Laboral**: 85% consultas, 80% juntas.
-- **Neurocirugía**: 70% SOAT, 80% otros.
-- **Ortopedia pediátrica**: valores fijos por consulta y yesos.
-- **Ortopedia general y socios**: diferenciación por plan.
-- **Cirugía de pie/tobillo**: ISS+30% sin diferenciación por múltiple.
-- **Cirugía reconstructiva**: valor fijo por paciente, ISS+20% otros.
-- **Cirugía de mano**: ISS+30%, PGP al 30%.
+2. Ejecuta la app:
+   ```bash
+   streamlit run liquidador_app.py
+   ```
 
----
+## 📊 Salidas del sistema
 
-## 📊 Cálculo y visualización
-- Aplicación automática de fórmula por fila.
-- Vista editable de valores liquidados.
-- Cálculo de totales y % liquidado.
-
----
-
-## 📤 Exportación y distribución
-- Exportar resultados en Excel individual por profesional.
-- Generar ZIP con informes.
-- Exportación por lote y PDF por profesional (integración avanzada).
-- Botón para envío por correo (opcional).
-
----
-
-## 📈 Módulo de reportes
-- Reportes por especialidad, plan, % y valor.
-- Resumen por grupo o bloque de especialistas.
+- `liquidacion_profesional.csv`: Liquidación filtrada por especialista.
+- `resumen_liquidacion.csv`: Consolidado por especialista (total liquidado).
