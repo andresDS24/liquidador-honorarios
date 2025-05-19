@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import zipfile
@@ -48,7 +47,16 @@ if 'df' in st.session_state:
             st.stop()
 
     st.subheader("⚙️ Parámetros de liquidación por especialidad")
-    profesional = st.selectbox("Selecciona el profesional a liquidar", df['Especialista'].dropna().unique())
+    if 'profesional' not in st.session_state:
+    st.session_state.profesional = df['Especialista'].dropna().unique()[0]
+
+profesional = st.selectbox(
+    "Selecciona el profesional a liquidar",
+    df['Especialista'].dropna().unique(),
+    index=list(df['Especialista'].dropna().unique()).index(st.session_state.profesional)
+)
+
+st.session_state.profesional = profesional
     check_anestesia_diff = st.checkbox("Anestesiología diferencial (60%)")
     check_socio = st.checkbox("Es socio ortopedista")
     check_reconstruc = st.checkbox("Cirujano reconstructivo")
