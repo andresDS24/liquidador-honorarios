@@ -30,11 +30,14 @@ if 'df' in st.session_state:
     if not codigos_faltantes:
         st.warning("✅ Todos los códigos ya tienen UVR asignada. No hay códigos pendientes.")
     else:
-        codigo_seleccionado = st.selectbox("Selecciona un código homólogo sin UVR para asignar manualmente", options=codigos_faltantes)
-        uvr_manual = st.number_input(f"Ingrese la UVR para el código {codigo_seleccionado}", min_value=0, step=1, key="uvr_manual")
-        if st.button("Asignar UVR"):
-            df.loc[df['CUPS'].astype(str) == str(codigo_seleccionado), 'Valor UVR'] = uvr_manual
-            st.success(f"UVR asignada a todos los registros con el código {codigo_seleccionado}")
+        with st.form("form_uvr"):
+            st.write("Selecciona uno o varios códigos para asignar UVR manualmente:")
+            seleccionados = st.multiselect("Códigos sin UVR", options=codigos_faltantes)
+            uvr_manual = st.number_input("Ingrese el valor UVR a asignar", min_value=0, step=1, key="uvr_manual_multiple")
+            submitted = st.form_submit_button("Asignar UVR")
+            if submitted and seleccionados:
+                df.loc[df['CUPS'].astype(str).isin(seleccionados), 'Valor UVR'] = uvr_manual
+                st.success(f"UVR {uvr_manual} asignada a los códigos seleccionados")
 
     sin_uvr = df[(df['Valor UVR'] == 0) | (df['Valor UVR'].isna())]
     if not sin_uvr.empty:
