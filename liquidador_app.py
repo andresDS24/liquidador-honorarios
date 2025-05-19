@@ -52,6 +52,16 @@ if 'df' in st.session_state:
         if not st.button("✅ Continuar sin completar todo"):
             st.stop()
 
+    # Unificación de especialidades
+    st.subheader("🔀 Unificación de Especialidades por Profesional")
+    profesionales = df['Especialista'].dropna().unique()
+    for prof in profesionales:
+        especialidades = df[df['Especialista'] == prof]['Especialidad'].dropna().unique()
+        if len(especialidades) > 1:
+            st.markdown(f"**{prof}** tiene múltiples especialidades: {', '.join(especialidades)}")
+            seleccion = st.selectbox(f"Selecciona especialidad a conservar para {prof}", options=especialidades, key=f"esp_{prof}")
+            df.loc[df['Especialista'] == prof, 'Especialidad'] = seleccion
+
     st.subheader("⚙️ Parámetros de liquidación por especialidad")
     if 'profesional' not in st.session_state:
         st.session_state.profesional = df['Especialista'].dropna().unique()[0]
@@ -77,11 +87,13 @@ if 'df' in st.session_state:
         valor = float(row.get("Valor Total", 0))
 
         if "ANESTESIO" in esp:
-            base = uvr * VALOR_UVR_ISS_ANESTESIA * 1.3
+            base = uvr * VALOR_UVR_ISS_ANESTESIA
+            incremento = base * 0.3
+            total = base + incremento
             factor = 0.6 if "misma" in via else 0.75
             if check_anestesia_diff:
                 factor += 0.6
-            return base * factor
+            return total * factor
 
         if "MAXILOFACIAL" in esp:
             if "INTERCONSULTA" in tipo: return 35000
@@ -118,22 +130,33 @@ if 'df' in st.session_state:
 
         if check_reconstruc:
             if "RECONSTRUCTIVA" in tipo: return 2700000 if "EPS" in plan else 3000000
-            return uvr * VALOR_UVR * 1.2
+            base = uvr * VALOR_UVR
+            incremento = base * 0.2
+            return base + incremento
 
         if check_pie:
             if "CONSULTA" in tipo: return 30000
             elif "JUNTA" in tipo or "ESPECIAL" in tipo: return 0.7 * valor
-            elif "QUIR" in tipo: return uvr * VALOR_UVR * 1.3
+            elif "QUIR" in tipo:
+                base = uvr * VALOR_UVR
+                incremento = base * 0.3
+                return base + incremento
 
         if "MANO" in esp:
             if "CONSULTA" in tipo: return 30000
             elif "JUNTA" in tipo or "ESPECIAL" in tipo: return 0.7 * valor
-            elif "QUIR" in tipo: return uvr * VALOR_UVR * 1.3
+            elif "QUIR" in tipo:
+                base = uvr * VALOR_UVR
+                incremento = base * 0.3
+                return base + incremento
 
         if "ORTOPEDIA" in esp:
             if check_socio: return 0.85 * valor if "SOAT" not in plan else 0.7 * valor
             elif "CONSULTA" in tipo: return 27000
-            elif "QUIR" in tipo: return uvr * VALOR_UVR * 1.2
+            elif "QUIR" in tipo:
+                base = uvr * VALOR_UVR
+                incremento = base * 0.2
+                return base + incremento
             elif "NO QUIR" in tipo: return 0.7 * valor
 
         return uvr * VALOR_UVR
@@ -152,20 +175,18 @@ if 'df' in st.session_state:
     import io
     from openpyxl import Workbook
 
-    if st.download_button("📅 Descargar resultados Excel", data=io.BytesIO(), file_name="liquidacion_profesional.xlsx"):
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_final.to_excel(writer, index=False, sheet_name="Liquidación")
-        output.seek(0)
-        st.download_button("Descargar Excel", data=output.read(), file_name="liquidacion_profesional.xlsx")
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_final.to_excel(writer, index=False, sheet_name="Liquidación")
+    output.seek(0)
+    st.download_button("📅 Descargar resultados Excel", data=output.read(), file_name="liquidacion_profesional.xlsx")
 
     st.subheader("📈 Informe resumen por Especialista")
     resumen = df.groupby("Especialista")["Valor Liquidado"].sum().reset_index().sort_values(by="Valor Liquidado", ascending=False)
     st.dataframe(resumen)
 
-    if st.download_button("📅 Descargar informe resumen", data=io.BytesIO(), file_name="resumen_liquidacion.xlsx"):
-        output2 = BytesIO()
-        with pd.ExcelWriter(output2, engine='openpyxl') as writer:
-            resumen.to_excel(writer, index=False, sheet_name="Resumen")
-        output2.seek(0)
-        st.download_button("Descargar Excel", data=output2.read(), file_name="resumen_liquidacion.xlsx")
+    output2 = BytesIO()
+    with pd.ExcelWriter(output2, engine='openpyxl') as writer:
+        resumen.to_excel(writer, index=False, sheet_name="Resumen")
+    output2.seek(0)
+    st.download_button("📅 Descargar informe resumen", data=output2.read(), file_name="resumen_liquidacion.xlsx")
