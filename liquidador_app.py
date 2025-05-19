@@ -24,6 +24,12 @@ if 'df' in st.session_state:
         if col not in df.columns:
             df[col] = '' if col in ['CUPS', 'Especialidad', 'Tipo Procedimiento', 'Plan Beneficios'] else 0
 
+    eliminar_duplicados = st.checkbox("🧹 Eliminar filas duplicadas", value=False)
+    if eliminar_duplicados:
+        df = df.drop_duplicates()
+        st.session_state.df = df
+        st.success("Filas duplicadas eliminadas")
+
     st.subheader("✏️ Ingreso manual de UVR para códigos no encontrados")
     codigos_faltantes = sorted(df.loc[(df['Valor UVR'].isna()) | (df['Valor UVR'] == 0), 'CUPS'].dropna().astype(str).unique().tolist())
 
@@ -143,12 +149,23 @@ if 'df' in st.session_state:
     st.metric("Total liquidado", f"${df_final['Valor Liquidado'].sum():,.0f}")
     st.metric("% Liquidado", f"{(df_final['Valor Liquidado'].sum() / df_final['Valor Total'].sum()) * 100:.2f}%")
 
-    if st.download_button("📅 Descargar resultados Excel", df_final.to_csv(index=False).encode('utf-8'), file_name="liquidacion_profesional.csv"):
-        st.success("Archivo descargado correctamente")
+    import io
+    from openpyxl import Workbook
+
+    if st.download_button("📅 Descargar resultados Excel", data=io.BytesIO(), file_name="liquidacion_profesional.xlsx"):
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_final.to_excel(writer, index=False, sheet_name="Liquidación")
+        output.seek(0)
+        st.download_button("Descargar Excel", data=output.read(), file_name="liquidacion_profesional.xlsx")
 
     st.subheader("📈 Informe resumen por Especialista")
     resumen = df.groupby("Especialista")["Valor Liquidado"].sum().reset_index().sort_values(by="Valor Liquidado", ascending=False)
     st.dataframe(resumen)
 
-    if st.download_button("📅 Descargar informe resumen", resumen.to_csv(index=False).encode('utf-8'), file_name="resumen_liquidacion.csv"):
-        st.success("Informe generado exitosamente")
+    if st.download_button("📅 Descargar informe resumen", data=io.BytesIO(), file_name="resumen_liquidacion.xlsx"):
+        output2 = BytesIO()
+        with pd.ExcelWriter(output2, engine='openpyxl') as writer:
+            resumen.to_excel(writer, index=False, sheet_name="Resumen")
+        output2.seek(0)
+        st.download_button("Descargar Excel", data=output2.read(), file_name="resumen_liquidacion.xlsx")
