@@ -137,7 +137,7 @@ if 'df' in st.session_state:
         if check_pie:
             if "CONSULTA" in tipo: return 30000
             elif "JUNTA" in tipo or "ESPECIAL" in tipo: return valor * 0.7
-            elif "QUIR" in tipo or "PROCED QX" in tipo:
+            elif "QUIR" in tipo or "PROCED QX" in tipo or "PROCEDIMIENTOS QUIRURGICOS" in tipo:
                 base = uvr * VALOR_UVR
                 incremento = base * 0.3
                 return base + incremento
@@ -145,7 +145,7 @@ if 'df' in st.session_state:
         if "MANO" in esp:
             if "CONSULTA" in tipo: return 30000
             elif "JUNTA" in tipo or "ESPECIAL" in tipo: return valor * 0.7
-            elif "QUIR" in tipo or "PROCED QX" in tipo:
+            elif "QUIR" in tipo or "PROCED QX" in tipo or "PROCEDIMIENTOS QUIRURGICOS" in tipo:
                 base = uvr * VALOR_UVR
                 incremento = base * 0.3
                 return base + incremento
@@ -153,7 +153,7 @@ if 'df' in st.session_state:
         if "ORTOPEDIA" in esp:
             if check_socio: return valor * 0.85 if "SOAT" not in plan else valor * 0.7
             elif "CONSULTA" in tipo: return 27000
-            elif "QUIR" in tipo or "PROCED QX" in tipo:
+            elif "QUIR" in tipo or "PROCED QX" in tipo or "PROCEDIMIENTOS QUIRURGICOS" in tipo:
                 base = uvr * VALOR_UVR
                 incremento = base * 0.2
                 return base + incremento
