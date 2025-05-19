@@ -25,9 +25,12 @@ if 'df' in st.session_state:
             df[col] = '' if col in ['CUPS', 'Especialidad', 'Tipo Procedimiento', 'Plan Beneficios'] else 0
 
     st.subheader("✏️ Ingreso manual de UVR para códigos no encontrados")
-    codigos_faltantes = df[(df['Valor UVR'] == 0) | (df['Valor UVR'].isna())]['CUPS'].dropna().astype(str).unique()
+    codigos_faltantes = sorted(df.loc[(df['Valor UVR'].isna()) | (df['Valor UVR'] == 0), 'CUPS'].dropna().astype(str).unique().tolist())
     if codigos_faltantes.size > 0:
-        codigo_seleccionado = st.selectbox("Selecciona un código homólogo sin UVR para asignar manualmente", codigos_faltantes)
+        if not codigos_faltantes:
+    st.warning("✅ Todos los códigos ya tienen UVR asignada. No hay códigos pendientes.")
+else:
+    codigo_seleccionado = st.selectbox("Selecciona un código homólogo sin UVR para asignar manualmente", options=codigos_faltantes)
         uvr_manual = st.number_input(f"Ingrese la UVR para el código {codigo_seleccionado}", min_value=0, step=1, key="uvr_manual")
         if st.button("Asignar UVR"):
             df.loc[df['CUPS'].astype(str) == str(codigo_seleccionado), 'Valor UVR'] = uvr_manual
