@@ -3,49 +3,15 @@ import pandas as pd
 import zipfile
 from io import BytesIO
 import re
-from PyPDF2 import PdfReader
 
 # CONFIGURACIÓN GENERAL
 st.set_page_config(page_title="Liquidador de Honorarios", layout="wide")
 VALOR_UVR = 1270
 VALOR_UVR_ISS_ANESTESIA = 960
 
-# FUNCIONES AUXILIARES
-def buscar_uvr_en_texto(codigo, texto):
-    codigo = codigo.strip()
-    lineas = texto.splitlines()
-    for i, linea in enumerate(lineas):
-        if codigo in linea:
-            match = re.search(r"(\d{2,4})", linea)
-            if match:
-                return int(match.group(1))
-            elif i + 1 < len(lineas):
-                siguiente = re.search(r"(\d{2,4})", lineas[i + 1])
-                if siguiente:
-                    return int(siguiente.group(1))
-    return None
-
-def cargar_uvr_desde_pdf(archivo_pdf):
-    if archivo_pdf is not None:
-        reader = PdfReader(archivo_pdf)
-        return "\n".join(page.extract_text() for page in reader.pages)
-    return ""
-
-def cargar_base_uvr_excel(archivo_excel):
-    try:
-        df_tarifas = pd.read_excel(archivo_excel)
-        df_tarifas = df_tarifas.dropna(subset=['Código ISS', 'UVR'])
-        df_tarifas['Código ISS'] = df_tarifas['Código ISS'].astype(str).str.strip()
-        return df_tarifas.set_index('Código ISS')['UVR'].to_dict()
-    except Exception as e:
-        st.error(f"Error cargando base ISS Excel: {e}")
-        return {}
-
 # 1. CARGA DE ARCHIVO
 st.title("📊 Plataforma de Liquidación de Honorarios Médicos")
-archivo = st.file_uploader("📥 Cargar archivo de servicios", type=["xlsx"])
-archivo_excel_uvr = st.file_uploader("📁 Subir archivo de UVR desde Excel (tarifas_iss_completo.xlsx)", type=["xlsx"])
-archivo_pdf_uvr = st.file_uploader("📄 Subir archivo PDF de UVR (tarifas-iss-2001.pdf)", type=["pdf"])
+archivo = st.file_uploader("📅 Cargar archivo de servicios", type=["xlsx"])
 
 if archivo:
     df = pd.read_excel(archivo)
@@ -58,24 +24,14 @@ if 'df' in st.session_state:
         if col not in df.columns:
             df[col] = '' if col in ['CUPS', 'Especialidad', 'Tipo Procedimiento', 'Plan Beneficios'] else 0
 
-    base_uvr_excel = cargar_base_uvr_excel(archivo_excel_uvr) if archivo_excel_uvr else {}
-    texto_uvr_pdf = cargar_uvr_desde_pdf(archivo_pdf_uvr) if archivo_pdf_uvr else ""
-
-    for i, row in df.iterrows():
-        if row['Valor UVR'] == 0 and isinstance(row['CUPS'], str) and row['CUPS'].strip():
-            cod = row['CUPS'].strip()
-            uvr = base_uvr_excel.get(cod) or buscar_uvr_en_texto(cod, texto_uvr_pdf)
-            if uvr:
-                df.loc[df['CUPS'] == cod, 'Valor UVR'] = uvr
-
     st.subheader("✏️ Ingreso manual de UVR para códigos no encontrados")
-    codigos_faltantes = df[df['Valor UVR'] == 0]['CUPS'].dropna().unique()
+    codigos_faltantes = df[(df['Valor UVR'] == 0) | (df['Valor UVR'].isna())]['CUPS'].dropna().unique()
     for cod in codigos_faltantes:
         nueva_uvr = st.number_input(f"UVR para código {cod}", min_value=0, step=1, key=f"uvr_{cod}")
         if nueva_uvr > 0:
             df.loc[df['CUPS'] == cod, 'Valor UVR'] = nueva_uvr
 
-    sin_uvr = df[df['Valor UVR'] == 0]
+    sin_uvr = df[(df['Valor UVR'] == 0) | (df['Valor UVR'].isna())]
     if not sin_uvr.empty:
         st.warning("⚠️ Aún hay registros sin UVR. Puedes completar manualmente o continuar sin aplicar.")
         st.dataframe(sin_uvr)
@@ -170,12 +126,12 @@ if 'df' in st.session_state:
     st.metric("Total liquidado", f"${df_final['Valor Liquidado'].sum():,.0f}")
     st.metric("% Liquidado", f"{(df_final['Valor Liquidado'].sum() / df_final['Valor Total'].sum()) * 100:.2f}%")
 
-    if st.download_button("📥 Descargar resultados Excel", df_final.to_csv(index=False).encode('utf-8'), file_name="liquidacion_profesional.csv"):
+    if st.download_button("📅 Descargar resultados Excel", df_final.to_csv(index=False).encode('utf-8'), file_name="liquidacion_profesional.csv"):
         st.success("Archivo descargado correctamente")
 
     st.subheader("📈 Informe resumen por Especialista")
     resumen = df.groupby("Especialista")["Valor Liquidado"].sum().reset_index().sort_values(by="Valor Liquidado", ascending=False)
     st.dataframe(resumen)
 
-    if st.download_button("📥 Descargar informe resumen", resumen.to_csv(index=False).encode('utf-8'), file_name="resumen_liquidacion.csv"):
+    if st.download_button("📅 Descargar informe resumen", resumen.to_csv(index=False).encode('utf-8'), file_name="resumen_liquidacion.csv"):
         st.success("Informe generado exitosamente")
