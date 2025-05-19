@@ -98,7 +98,8 @@ if 'df' in st.session_state:
         if "MAXILOFACIAL" in esp:
             if "INTERCONSULTA" in tipo: return 35000
             elif "CONSULTA" in tipo: return 29000
-            return 0.7 * valor
+            base = valor * 0.7
+            return base
 
         if "FISIATRIA" in esp:
             if "PRIMERA" in tipo: return 59000
@@ -107,24 +108,24 @@ if 'df' in st.session_state:
             elif "JUNTA" in tipo: return 70000
             elif "TOXINA" in tipo: return 155000
             elif "INFILTRACION" in tipo: return 76000
-            elif "NO QUIR" in tipo: return 0.7 * valor
+            elif "NO QUIR" in tipo: return valor * 0.7
 
         if "DOLOR" in esp:
             if "INTERCONSULTA" in tipo: return 58400
             elif "MIOFASCIAL" in tipo: return 64500
             elif "PAQUETE" in tipo: return 350000
-            return 0.7 * valor
+            return valor * 0.7
 
         if "LABORAL" in esp:
-            if "JUNTA" in tipo: return 0.8 * valor
-            return 0.85 * valor
+            if "JUNTA" in tipo: return valor * 0.8
+            return valor * 0.85
 
         if "NEUROCIRU" in esp:
-            return 0.7 * valor if "SOAT" in plan else 0.8 * valor
+            return valor * 0.7 if "SOAT" in plan else valor * 0.8
 
         if "PEDIATRICA" in esp:
             if "EPS" in plan: return 70000
-            elif "SOAT" in plan or "POLIZA" in plan: return 0.7 * valor
+            elif "SOAT" in plan or "POLIZA" in plan: return valor * 0.7
             elif "YESO" in tipo: return 260000
             elif "MALFORMACION" in tipo: return 980000
 
@@ -136,7 +137,7 @@ if 'df' in st.session_state:
 
         if check_pie:
             if "CONSULTA" in tipo: return 30000
-            elif "JUNTA" in tipo or "ESPECIAL" in tipo: return 0.7 * valor
+            elif "JUNTA" in tipo or "ESPECIAL" in tipo: return valor * 0.7
             elif "QUIR" in tipo:
                 base = uvr * VALOR_UVR
                 incremento = base * 0.3
@@ -144,20 +145,20 @@ if 'df' in st.session_state:
 
         if "MANO" in esp:
             if "CONSULTA" in tipo: return 30000
-            elif "JUNTA" in tipo or "ESPECIAL" in tipo: return 0.7 * valor
+            elif "JUNTA" in tipo or "ESPECIAL" in tipo: return valor * 0.7
             elif "QUIR" in tipo:
                 base = uvr * VALOR_UVR
                 incremento = base * 0.3
                 return base + incremento
 
         if "ORTOPEDIA" in esp:
-            if check_socio: return 0.85 * valor if "SOAT" not in plan else 0.7 * valor
+            if check_socio: return valor * 0.85 if "SOAT" not in plan else valor * 0.7
             elif "CONSULTA" in tipo: return 27000
             elif "QUIR" in tipo:
                 base = uvr * VALOR_UVR
                 incremento = base * 0.2
                 return base + incremento
-            elif "NO QUIR" in tipo: return 0.7 * valor
+            elif "NO QUIR" in tipo: return valor * 0.7
 
         return uvr * VALOR_UVR
 
